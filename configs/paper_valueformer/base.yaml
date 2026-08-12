@@ -1,0 +1,46 @@
+# Paper Reproduction Track config snapshot.
+# Source: ValueFormer v1 (arXiv:2608.02958v1), Section III-V, Table I, Fig. 6-7.
+# Do not edit in place for a future arXiv revision -- add base_v2.yaml etc. instead.
+paper_version: "arXiv:2608.02958v1"
+
+data:
+  fps_native: 30
+  sample_stride_frames: 15          # ~0.5s stride
+  seq_len: 16                       # 8s causal context at 2Hz sampling
+  n_stages: 6                       # bottom_bun, patty, cheese, tomato, lettuce, top_bun
+  views: [cam_high, cam_left_wrist, cam_right_wrist, cam_high_roi, cam_left_wrist_roi, cam_right_wrist_roi]
+  state_dim: 14                     # 7 DoF x 2 arms
+  time_feat_dim: 2                  # [t_sec, t_frac]
+
+model:
+  d_model: 256
+  n_layers: 2
+  n_heads: 4
+  ffn_mult: 4
+  dropout_body: 0.2
+  dropout_aux: 0.4
+  vision_dim_per_view: 1024
+  n_views: 6
+  vmc_hidden: [512, 256]
+  vbin_hidden: [128]
+
+labels:
+  gamma: 0.99                       # MC discount, Eq. (2)-(3)
+  fail_shape: mc_smooth             # one of: mc_smooth, outcome_scaled, cliff, c_linear, c_late
+
+loss:
+  beta: 1.0                         # weight on L_bin, Eq. (7)
+  w_fail: 1.0                       # optional flat-zero upweight in L_mc, Eq. (6); 1.0 = no-op
+  alpha_clip: [0.1, 10.0]           # clip range for batch-wise pos_weight alpha_+, Eq. (7)
+
+optim:
+  lr: 1.0e-4
+  weight_decay: 0.05
+  warmup_epochs: 5
+  max_epochs: 100
+  batch_size: 256
+  early_stop_patience: 15
+  grad_clip: 1.0
+
+sampler:
+  groups: [expert-success, expert-fail, rollout-success, rollout-fail]

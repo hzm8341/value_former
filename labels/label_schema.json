@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ValueFormer per-frame label provenance schema",
+  "description": "Source: R&D plan V3.2, Section 2.6. Every training label must keep provenance so manual annotation, rule-based auto labels, and model pseudo-labels are never silently mixed.",
+  "type": "object",
+  "properties": {
+    "label_version": {"type": "string", "description": "e.g. paper_labels_v1, industrial_progress_v0"},
+    "track": {"type": "string", "enum": ["paper", "industrial"]},
+    "phase_label": {"type": ["string", "null"], "enum": ["S0", "S1", "S2", "S3", "S4", "S5", "S6", null]},
+    "phase_source": {"type": ["string", "null"], "enum": ["manual", "rule", "model", null]},
+    "progress_value": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+    "progress_source": {"type": ["string", "null"], "enum": ["manual", "rule", "model", null]},
+    "progress_confidence": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+    "contact_state": {"type": ["string", "null"]},
+    "contact_source": {"type": ["string", "null"], "enum": ["manual", "rule", "model", null]},
+    "contact_confidence": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+    "mistake_state": {"type": ["string", "null"], "enum": ["normal", "recoverable_mistake", "terminal_failure", "ignore_ambiguous", null]},
+    "mistake_source": {"type": ["string", "null"], "enum": ["manual", "rule", "model", "intervention", null]},
+    "physical_measurements_used": {"type": "array", "items": {"type": "string"}},
+    "sensor_calibration_id": {"type": ["string", "null"]}
+  },
+  "required": ["label_version", "track"]
+}

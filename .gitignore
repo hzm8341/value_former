@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+*.pt
+*.pth
+.pytest_cache/
+data/manifests/*.json
+data/splits/**/*.json
+reports/*.json
+reports/*.png
+!**/.gitkeep

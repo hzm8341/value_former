@@ -1,0 +1,18 @@
+# Contact AOP config: adds force/tactile history branch to AOP V0.
+# Source: R&D plan V3.2, Phase 5.
+horizon_seconds: 0.5
+recoverable_horizon_seconds: 2.0   # H_r for P(recoverable within H_r)
+
+force_dim: 6            # Fx,Fy,Fz,Tx,Ty,Tz
+tactile_dim: 16          # placeholder tactile feature width
+history_len: 50           # samples at high-frequency contact branch rate
+
+heads:
+  progress: 1
+  success_h: 1
+  jam: 1
+  slip: 1
+  contact_side: 5          # left/right/front/back/centered
+  p_recoverable: 1
+
+ablation_stages: [vision, vision_geometry, vision_geometry_force, vision_geometry_force_tactile]
