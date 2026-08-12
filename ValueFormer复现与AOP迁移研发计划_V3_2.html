@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ValueFormer复现与AOP迁移研发计划 V3.2</title>
+<style>
+  :root {
+    --ink: #1f1e1a;
+    --sub: #5f5e5a;
+    --muted: #888780;
+    --line: #d3d1c7;
+    --bg: #faf9f5;
+    --card: #ffffff;
+    --accent: #0f6e56;
+    --accent-bg: #e1f5ee;
+    --accent-line: #5dcaa5;
+    --warn: #854f0b;
+    --warn-bg: #faeeda;
+    --warn-line: #ef9f27;
+    --blue: #185fa5;
+    --blue-bg: #e6f1fb;
+    --red: #a32d2d;
+    --red-bg: #fcebeb;
+    --red-line: #f09595;
+    --code-bg: #2c2c2a;
+    --code-ink: #f1efe8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.75;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 56px 28px 100px;
+  }
+  header.title-block {
+    margin-bottom: 40px;
+    padding-bottom: 28px;
+    border-bottom: 2px solid var(--ink);
+  }
+  header.title-block .kicker {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  header.title-block h1 {
+    font-size: 30px;
+    font-weight: 700;
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+  header.title-block .meta {
+    font-size: 14px;
+    color: var(--sub);
+  }
+  header.title-block .meta span { margin-right: 18px; }
+
+  .summary-box {
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-line);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 28px 0 24px;
+  }
+  .summary-box h3 {
+    margin: 0 0 8px;
+    font-size: 15px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .summary-box p { margin: 0; font-size: 15px; color: var(--ink); }
+
+  .changelog-box {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 0 0 40px;
+  }
+  .changelog-box h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: var(--sub);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .changelog-box table { margin: 0; }
+  .changelog-box td { font-size: 14px; vertical-align: top; }
+  .changelog-box td.tag {
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 100px;
+    text-align: center;
+  }
+  .tag-fix { background: var(--red-bg); color: var(--red); }
+  .tag-add { background: var(--accent-bg); color: var(--accent); }
+  .tag-verify { background: var(--warn-bg); color: var(--warn); }
+
+  h2.section-title {
+    font-size: 21px;
+    font-weight: 700;
+    margin: 48px 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  h2.section-title .num {
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  h3.sub-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 26px 0 10px;
+    color: var(--ink);
+  }
+
+  p { margin: 12px 0; font-size: 15.5px; }
+
+  .phase-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  .phase-card .phase-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .phase-card .phase-head h4 {
+    margin: 0;
+    font-size: 16.5px;
+    font-weight: 700;
+  }
+  .phase-card .duration {
+    font-size: 12.5px;
+    color: var(--accent);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-line);
+    padding: 3px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .phase-card .duration.revised {
+    color: var(--warn);
+    background: var(--warn-bg);
+    border-color: var(--warn-line);
+  }
+  .phase-card ul { margin: 10px 0 4px; padding-left: 20px; }
+  .phase-card li { margin: 7px 0; font-size: 14.8px; }
+  .phase-card li b { font-weight: 600; }
+
+  .callout {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-left: 4px solid var(--warn);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 14.5px;
+  }
+  .callout .label {
+    font-weight: 700;
+    color: var(--warn);
+    margin-right: 6px;
+  }
+
+  .link-callout {
+    background: var(--blue-bg);
+    border: 1px solid #85b7eb;
+    border-left: 4px solid var(--blue);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 14.5px;
+  }
+  .link-callout .label { font-weight: 700; color: var(--blue); margin-right: 6px; }
+
+  .verify-callout {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-left: 4px solid var(--warn);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 14px 0;
+    font-size: 14.5px;
+  }
+  .verify-callout .label {
+    font-weight: 700;
+    color: var(--warn);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .risk-callout {
+    background: var(--red-bg);
+    border: 1px solid var(--red-line);
+    border-left: 4px solid var(--red);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 14.5px;
+  }
+  .risk-callout .label { font-weight: 700; color: var(--red); margin-right: 6px; }
+
+  code, .code-inline {
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+    background: #eeede4;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13.5px;
+    color: #4a1b0c;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 18px 20px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 14px 0;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    background: #f1efe8;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--sub);
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .integration-box {
+    background: #eeedfe;
+    border: 1px solid #afa9ec;
+    border-left: 4px solid #534ab7;
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 20px 0;
+  }
+  .integration-box h4 {
+    margin: 0 0 10px;
+    color: #3c3489;
+    font-size: 16px;
+  }
+  .integration-box ol { padding-left: 20px; margin: 10px 0; }
+  .integration-box li { margin: 10px 0; font-size: 14.8px; }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 20px 0;
+  }
+  .timeline-row {
+    display: flex;
+    align-items: stretch;
+    border-left: 2px solid var(--line);
+    padding: 0 0 22px 24px;
+    position: relative;
+  }
+  .timeline-row:last-child { padding-bottom: 4px; }
+  .timeline-row::before {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+  .timeline-row .tl-week {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 3px;
+  }
+  .timeline-row .tl-content { font-size: 14.5px; }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .phase-card, .summary-box, .callout, .link-callout, .integration-box, .verify-callout, .risk-callout { break-inside: avoid; }
+  }
+
+
+  .source-box {
+    background:#f8fbff;
+    border:1px solid #85b7eb;
+    border-left:4px solid var(--blue);
+    border-radius:10px;
+    padding:18px 22px;
+    margin:18px 0;
+    font-size:14.5px;
+  }
+  .source-box h4 { margin:0 0 8px; color:var(--blue); font-size:15px; }
+  .gate-box {
+    background:#f7f7f4;
+    border:1px solid var(--line);
+    border-left:4px solid var(--ink);
+    border-radius:8px;
+    padding:14px 18px;
+    margin:14px 0;
+    font-size:14.5px;
+  }
+  .pill {
+    display:inline-block;
+    padding:2px 8px;
+    margin-right:6px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:700;
+    vertical-align:1px;
+  }
+  .pill-paper { background:#e6f1fb; color:#185fa5; }
+  .pill-eng { background:#e1f5ee; color:#0f6e56; }
+  .pill-gate { background:#faeeda; color:#854f0b; }
+  .small { font-size:13px; color:var(--sub); }
+  .nowrap { white-space:nowrap; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="title-block">
+    <div class="kicker">研发计划 / Technical R&amp;D Plan</div>
+    <h1>ValueFormer 复现与 AOP / Lite-LDA 迁移研发计划 V3.2</h1>
+    <div class="meta">
+      <span>基础论文：arXiv:2608.02958 v1</span>
+      <span>关联项目：State Critic / AOP / Contact AOP / Lite-LDA</span>
+      <span>版本：V3.2 · 2026-08</span>
+    </div>
+  </header>
+
+  <div class="summary-box">
+    <h3>一句话定位</h3>
+    <p>V3.2 将研发工作严格拆成两条互不混淆的主线：<strong>Paper Reproduction Track</strong> 用于忠实复现 ValueFormer 的 State Critic <code>V(s)</code>、原始 stage-aware 标签与 BCE 训练设置；<strong>Industrial Track</strong> 用于精密插入任务，采用独立的 Task Phase / Physical Progress / Contact State 三套标签，并逐步升级到固定时域 <code>Q_H(s,a)</code> 的 Action Outcome Predictor、Force/Tactile Contact AOP，最后仅在真实动作排序已经成立后进入 physical-grounded Lite-LDA。V3.2 的核心原则是：<strong>论文复现回答“能否复现”，工业标签回答“是否真正适合毫米级接触”，二者不得用同一套标签强行统一。</strong></p>
+  </div>
+
+  <div class="changelog-box">
+    <h3>V3.2 相对 V3.1 的修订记录</h3>
+    <table>
+      <tr><td class="tag tag-fix">证据闭环</td><td>1.1 节补充 ValueFormer v1 Section IV-E、Eq. (6)–(7) 的可追溯来源：<code>V_mc</code> 为 soft-target BCE，<code>V_bin</code> 为 weighted BCE，<code>β=1.0</code>；validation MSE 仅用于评估/early stopping，不再存在“待核实”状态。</td></tr>
+      <tr><td class="tag tag-add">核心新增</td><td>新增“Paper Label Track / Industrial Label Track”双轨 Label Engine。工业 Physical Progress 不再由阶段序号或 episode 时间比例生成。</td></tr>
+      <tr><td class="tag tag-add">核心新增</td><td>给出可实现的 Industrial Physical Progress 生成函数：对 approach、alignment、insertion depth、contact quality、jam/slip/overload 等物理量归一化后形成可回退的连续 potential，并规定终态 override、平滑与版本化策略。</td></tr>
+      <tr><td class="tag tag-fix">修复</td><td>Task Phase S0–S6、Physical Progress、Contact State 完全独立保存；Phase 只描述“当前在做什么”，不再直接决定 progress 数值。</td></tr>
+      <tr><td class="tag tag-add">新增</td><td>新增 Phase 3B Cross-policy Generalization，单独分配 0.5–1 周，并设置相对性能下降 Gate，避免“随后再测”停留在附注层面。</td></tr>
+      <tr><td class="tag tag-fix">修复</td><td>阶段4时长正式记录为 2–3 周，原因是新增 Canonical Action、Candidate Generator、Sim→Real calibration 与真实 paired ranking。</td></tr>
+      <tr><td class="tag tag-fix">修复</td><td>修正 V3.1 中“相对 V3.1 / 在 V3.1 基础上”等版本文字错误，并删除“并行验证哪种训练目标才是论文设置”的旧措辞。</td></tr>
+      <tr><td class="tag tag-add">工程新增</td><td>Candidate Action 在进入 AOP 前增加 deterministic safety envelope；真实 paired action 明确采用可重复 reset / matched initial conditions，是近似反事实而非数学意义上的同状态双执行。</td></tr>
+    </table>
+  </div>
+
+  <h2 class="section-title"><span class="num">01</span>事实基线、证据与概念边界</h2>
+
+  <h3 class="sub-title">1.1 ValueFormer 论文训练目标：已核实并可追溯</h3>
+  <p><span class="pill pill-paper">论文事实</span>ValueFormer v1 的 Section IV-E “Training Objective” 明确联合训练两个 head。连续价值头 <code>V_mc</code> 使用 soft-target binary cross-entropy；二值异常头 <code>V_bin</code> 使用带类别平衡的 weighted BCE；总损失中的二值头权重 <code>β=1.0</code>。论文同时明确说明 validation MSE 是 measurement，而不是训练信号。</p>
+  <pre><code>Paper reproduction baseline
+
+L = L_mc + β · L_bin
+L_mc  = BCE(logit_mc, soft_target v ∈ [0,1])        # Eq. (6)
+L_bin = weighted_BCE(logit_bin, binary_target)       # Eq. (7)
+β = 1.0
+
+Optimization / selection notes from paper:
+- training objective: BCE
+- validation MSE: evaluation + checkpoint / early-stopping signal
+- γ = 0.99 for MC labels</code></pre>
+  <div class="source-box">
+    <h4>论文追溯信息</h4>
+    <p style="margin:0">来源：<em>ValueFormer: A Causal Transformer Value Function with Stage-Aware Labels for Semi-Autonomous Vision-Language-Action Policies</em>, arXiv:2608.02958 v1，Section IV-E，Eq. (6)–(7)。建议研发仓库 README 固定记录论文版本号，防止后续 arXiv revision 改动导致“复现配置漂移”。</p>
+    <p style="margin:8px 0 0"><a href="https://arxiv.org/html/2608.02958v1" target="_blank">arXiv HTML v1</a> · <a href="https://arxiv.org/abs/2608.02958" target="_blank">arXiv Abstract</a></p>
+  </div>
+  <div class="callout"><span class="label">工程消融：</span>MSE / Huber 可以继续做，但身份必须是“自有工业任务 loss ablation”，不能再与论文复现配置并列为待核实候选。</div>
+
+  
+  <h3 class="sub-title">1.2 Paper Reproduction Configuration Snapshot</h3>
+  <p><span class="pill pill-paper">论文事实</span>为避免“只复现大方向、不复现实验配置”，V3.2 固定一份 paper config snapshot。若未来 arXiv 出现 v2/v3，必须新建配置文件而不是覆盖 v1。</p>
+  <table>
+    <tr><th>项目</th><th>ValueFormer v1 配置</th></tr>
+    <tr><td>数据</td><td>1,249 expert-success + 178 autonomous rollouts（90 success / 88 failure），LeRobot v2</td></tr>
+    <tr><td>采样</td><td>原始约 30 fps；每 15 帧取样，约 0.5 s stride；train/val 按 episode 切分</td></tr>
+    <tr><td>视觉</td><td>冻结 DINOv3 ViT-L/16；6 views = 3 full cameras + 3 ROI；每 view 取 CLS，拼接 6144-D</td></tr>
+    <tr><td>状态</td><td>14-D bimanual joint state；另含 2-D time feature</td></tr>
+    <tr><td>时序模型</td><td>d_model=256，2-layer causal Transformer，4 heads，seq_len=16</td></tr>
+    <tr><td>双头</td><td>V_mc: 256→512→256→1；V_bin: 256→128→1</td></tr>
+    <tr><td>可训练参数</td><td>约 3.46M（DINOv3 frozen）</td></tr>
+    <tr><td>优化器</td><td>AdamW，lr=1e-4，weight decay=0.05；5 epochs linear warm-up + cosine decay</td></tr>
+    <tr><td>Batch</td><td>256；按 expert-success / expert-fail / rollout-success / rollout-fail 做 balanced sampler，实际 expert-fail 为空</td></tr>
+    <tr><td>训练上限</td><td>最多 100 epochs；validation MSE early stopping，patience=15</td></tr>
+    <tr><td>MC discount</td><td>γ=0.99</td></tr>
+  </table>
+  <div class="callout"><span class="label">复现纪律：</span>Paper Track 先按上述配置建立 reference run；任何为了自有硬件/数据做的修改（相机数量、DINO版本、窗口长度、loss、采样频率）必须进入 <code>configs/industrial_*</code>，不能覆盖 paper config。</div>
+
+  <h3 class="sub-title">1.3 ValueFormer、AOP 与 Lite-LDA 的边界</h3>
+  <pre><code>State Critic / ValueFormer
+Observation history ───────────────────────→ V(s)
+回答：当前状态是否健康、是否在推进？
+
+Action Outcome Predictor / AOP
+Observation history + canonical action ───→ Q_H(s,a)
+回答：未来 H 时间内，这个动作会造成什么短期结果？
+
+Lite-LDA / Physical-grounded World Critic
+latent state + action ─────────────────────→ z_future + physical future
+回答：动作将如何改变未来 latent / geometry / contact / progress？</code></pre>
+  <p><span class="pill pill-eng">工程定义</span>AOP V0 不应只输出一个难解释的 scalar Q。首版采用可解释 multi-head short-horizon outcomes，再由它们形成排序分数：</p>
+  <pre><code>Recommended AOP heads
+ΔProgress
+P(Jam | H)
+P(Slip | H)
+P(Success within H)
+ΔEE-target pose
+ΔInsertion depth
+Contact transition
+
+Example ranking score
+Score = w1·ΔProgress - w2·P(Jam) - w3·P(Slip) + w4·P(Success_H)</code></pre>
+  <p>首版 <code>H</code> 建议从 0.25–1.0 s 试验；它是任务配置，不是固定论文参数。所有 candidate action 的 duration / sampling frequency 必须归一化后才进入 AOP。</p>
+
+  <h3 class="sub-title">1.4 多速率系统边界</h3>
+  <p>State Critic / AOP 不能承担高速安全控制。建议把不同任务放在其适合的时间尺度：</p>
+  <pre><code>VLA / Policy                  2–10 Hz
+State / World Critic          5–20 Hz
+AOP reranking                 5–20 Hz（按事件可提高）
+Contact Critic               20–100 Hz
+Force/Tactile residual       50–500+ Hz
+Joint / impedance control   500–1000 Hz</code></pre>
+  <div class="risk-callout"><span class="label">硬边界：</span>jam / overload / collision 的硬安全退出不依赖 ValueFormer/AOP 学习输出；机器学习只能提供附加预测，不能替代控制器和独立安全阈值。</div>
+
+  <h2 class="section-title"><span class="num">02</span>双轨 Label Engine：V3.2 的核心改动</h2>
+
+  <h3 class="sub-title">2.1 为什么必须双轨</h3>
+  <p>ValueFormer 原任务是六个有序语义 stage 的三明治装配，stage-aware success-then-decay 的主要目标是避免失败 episode 的正常前缀被错误标成 0。精密插入任务则存在 <code>S4→S2→S3→S4</code> 的回退、jam 后撤、重新搜索等真实非单调过程。因此 V3.2 明确：</p>
+  <pre><code>Label Engine
+│
+├── Track A · Paper Reproduction Labels
+│     目的：验证 ValueFormer 方法是否忠实复现
+│     公式：严格按论文 stage-aware MC label
+│
+└── Track B · Industrial Physical Labels
+      目的：训练真正适用于精密接触的 Critic / AOP
+      字段：Task Phase + Physical Progress + Contact State + Mistake</code></pre>
+  <div class="gate-box"><span class="pill pill-gate">禁止事项</span>不得为了“保持与论文一致”而让 Track B 继续用 stage index / total stages 作为最终 progress；也不得用 Track B 的工业标签结果反过来宣称“论文复现成功”。</div>
+
+  <h3 class="sub-title">2.2 Track A：Paper Reproduction Label</h3>
+  <p><span class="pill pill-paper">论文事实</span>Paper Track 只用于复现。成功 episode 沿 discounted MC curve；失败 episode 在估计失败阶段之前保留与成功相同的前缀，之后再衰减。核心参数按论文版本固定，例如 <code>γ=0.99</code>。</p>
+  <pre><code>Eq. (2) — Success episode
+v_k^succ = γ^(N-1-k)
+
+Eq. (3) — Failed episode
+s_fail = number of fully completed ordered stages before failure
+k_fail = floor((s_fail / N_s) · N)
+
+v_k^fail = γ^(N-1-k)                         , k ≤ k_fail
+           v_k_fail · γ^(k-k_fail)           , k > k_fail
+
+Eq. (4) — Sharp mistake target
+v_bin(k) = 0  if sample k falls inside any annotated mistake interval
+           1  otherwise
+
+注意：以上仅属于 Paper Track。
+不要把工业版非单调 progress 逻辑塞进该复现分支。</code></pre>
+  <p>Track A 至少保留论文中的 flat-zero / cliff / late-diverge 等 label-shape ablation，用来确认“标签形状比架构更重要”的论文结论能否在自有数据上部分重现。</p>
+
+  <h3 class="sub-title">2.3 Track B：Task Phase —— 只描述“当前在做什么”</h3>
+  <table>
+    <tr><th>Phase</th><th>定义</th><th>主要观测</th><th>允许回退</th></tr>
+    <tr><td>S0</td><td>Free-space approach</td><td>tip-target distance / EE pose</td><td>是</td></tr>
+    <tr><td>S1</td><td>Pre-contact alignment</td><td>横向误差 / 角度误差</td><td>是</td></tr>
+    <tr><td>S2</td><td>First / renewed contact</td><td>Fz / tactile onset</td><td>是</td></tr>
+    <tr><td>S3</td><td>Contact localization / search</td><td>Fxy / search trajectory / contact-side</td><td>是</td></tr>
+    <tr><td>S4</td><td>Insertion engaged</td><td>初始插入深度 / 接触稳定</td><td>是</td></tr>
+    <tr><td>S5</td><td>Insertion depth increasing</td><td>深度增长 / 轴向力</td><td>是</td></tr>
+    <tr><td>S6</td><td>Fully seated</td><td>到位深度 / 位姿 / 力学条件</td><td>终态</td></tr>
+  </table>
+  <p>Phase 是 categorical state，不承担“70%完成度”这种数值语义。同一 episode 可以多次进入 S2/S3/S4。</p>
+
+  <h3 class="sub-title">2.4 Track B：Physical Progress —— 明确的非单调标签函数</h3>
+  <p><span class="pill pill-eng">工程定义</span>工业 Progress 定义为“当前物理状态相对于成功目标的 potential”，而不是“历史做到了第几阶段”。首版建议用可测量物理量构造 deterministic label，再用真实 outcome 做校准。所有量必须先归一化到 [0,1]。</p>
+  <pre><code>Raw physical observables x_t
+- d_tip        : end-effector / peg-tip 到目标区域距离
+- e_xy         : 横向对准误差
+- e_rot        : 轴线角度误差
+- d_insert     : 当前插入深度
+- q_contact    : 接触质量（居中、稳定、可继续推进）
+- p_jam        : jam 指示 / 概率
+- p_slip       : slip 指示 / 概率
+- p_overload   : 超力风险
+
+Normalized sub-scores (examples)
+g_approach = exp(-(d_tip / σ_d)^2)
+g_align    = exp(-(e_xy / σ_xy)^2) · exp(-(e_rot / σ_r)^2)
+g_depth    = clip(d_insert / d_goal, 0, 1)
+g_contact  = clip(q_contact, 0, 1)
+
+Initial physical potential
+P_raw(t) = clip(
+    w_a·g_approach
+  + w_b·g_align
+  + w_c·g_depth
+  + w_d·g_contact
+  - w_j·p_jam
+  - w_s·p_slip
+  - w_o·p_overload,
+  0, 1)
+
+Terminal overrides
+if fully_seated: P(t) = 1.0
+if hard_abort / part_damage: P(t) = 0.0 or ignore-after-damage
+
+Temporal processing
+- normal frames: short EMA / median filter to suppress sensor jitter
+- jam / overload onset: penalty applied immediately，不做长窗口平滑
+- recovery: P 可下降后重新上升，禁止 cumulative-max 强制单调</code></pre>
+  <div class="callout"><span class="label">参数原则：</span><code>w_*</code>、<code>σ_*</code> 不是固定真理。阶段0用 20–30 条成功/失败/recovery 试点轨迹做归一化和敏感性分析；参数写入 task config 并版本化。后续可训练一个 calibrated progress model 替代人工 potential，但 deterministic physical progress 必须长期保留为可解释 baseline。</div>
+
+  <h3 class="sub-title">2.5 Contact State 与 Mistake Label</h3>
+  <pre><code>Contact State（frame/window-level）
+no-contact / light-contact / centered-contact /
+left / right / front / back contact /
+jam / slip / insertion / fully-seated
+
+Mistake State
+normal
+recoverable mistake
+terminal failure
+ignore / ambiguous</code></pre>
+  <p>Recoverable mistake 的区间从 physical failure onset 开始，到重新进入稳定有效 insertion/search 状态结束；terminal failure 则直到 reset 或 episode 终止。Human intervention 的 lead/ignore window 不复制论文常数，而应由自有数据估计：</p>
+  <pre><code>reaction_delay = t_intervention - t_physical_failure_onset</code></pre>
+
+  <h3 class="sub-title">2.6 Label provenance、置信度与版本控制</h3>
+  <p>每个训练 label 必须保留来源，避免后续混用人工标注、规则自动标签和模型伪标签：</p>
+  <pre><code>recommended per-frame metadata
+label_version
+phase_label + phase_source
+progress_value + progress_source + progress_confidence
+contact_state + contact_source + confidence
+mistake_state + mistake_source
+physical_measurements_used
+sensor_calibration_id</code></pre>
+
+  <h2 class="section-title"><span class="num">03</span>数据组成、划分与数据质量</h2>
+
+  <h3 class="sub-title">3.1 数据必须覆盖 Policy 自身失败分布</h3>
+  <table>
+    <tr><th>数据类型</th><th>作用</th><th>是否必须</th></tr>
+    <tr><td>Expert success</td><td>建立正常阶段与 progress 覆盖</td><td>必须</td></tr>
+    <tr><td>Policy clean success</td><td>覆盖真实部署分布</td><td>必须</td></tr>
+    <tr><td>Policy failure</td><td>训练真实失效检测</td><td>必须</td></tr>
+    <tr><td>Policy recovery</td><td>学习失败后恢复，不把 mistake 等同于 terminal</td><td>必须</td></tr>
+    <tr><td>Human intervention</td><td>mistake interval / recovery action</td><td>推荐</td></tr>
+    <tr><td>Disturbance rollout</td><td>OOD、恢复、鲁棒性</td><td>必须用于测试</td></tr>
+    <tr><td>Contact failure</td><td>jam/slip/misalignment/false insertion</td><td>Contact AOP 必须</td></tr>
+  </table>
+
+  <h3 class="sub-title">3.2 Split 规则</h3>
+  <pre><code>Train              : independent episodes / sessions
+Validation-ID      : new episode, same distribution
+Test-ID            : new episode, same distribution
+Test-OOD-pose      : controlled position / angle perturbation
+Test-OOD-object    : new peg / tube / connector instance or geometry
+Test-OOD-light     : lighting / occlusion changes
+Test-recovery      : first attempt fails, then recovery
+Test-cross-policy  : policy not used for State Critic training
+
+禁止：同一 episode 随机切 frame 到 train/val/test</code></pre>
+
+  <h3 class="sub-title">3.3 Shortcut 审计</h3>
+  <p>Industrial Track 必须先跑 cheap baselines。特别是 Time-only / State-only 如果已经很好，说明数据或标签存在 shortcut：</p>
+  <table>
+    <tr><th>ID</th><th>输入 / 模型</th><th>目的</th></tr>
+    <tr><td>B0</td><td>Time only</td><td>检测时间泄漏</td></tr>
+    <tr><td>B1</td><td>Robot state only</td><td>检测运动学 shortcut</td></tr>
+    <tr><td>B2</td><td>Current image only</td><td>单帧视觉下界</td></tr>
+    <tr><td>B3</td><td>DINO + MLP</td><td>冻结视觉特征 baseline</td></tr>
+    <tr><td>B4</td><td>DINO + State + MLP</td><td>判断时序增益</td></tr>
+    <tr><td>B5</td><td>DINO history + GRU</td><td>轻量时序对照</td></tr>
+    <tr><td>B6</td><td>DINO history + Causal Transformer</td><td>ValueFormer style baseline</td></tr>
+    <tr><td>B7</td><td>+ wrist ROI / spatial tokens</td><td>验证毫米级局部几何</td></tr>
+    <tr><td>B8</td><td>+ explicit geometry</td><td>验证显式相对位姿增益</td></tr>
+    <tr><td>B9</td><td>+ force</td><td>验证力觉增益</td></tr>
+    <tr><td>B10</td><td>+ tactile</td><td>验证触觉增益</td></tr>
+  </table>
+
+  <h3 class="sub-title">3.4 视觉表示要求</h3>
+  <p>毫米级插入不能只依赖全局 CLS token。建议至少对比：</p>
+  <pre><code>DINO CLS
+vs wrist ROI patch pooling
+vs spatial patch tokens
+vs explicit geometry (EE-target relative pose / keypoints / pose estimator)
+
+首选工程组合：
+global semantic feature + wrist ROI spatial feature + explicit geometry</code></pre>
+
+  <h2 class="section-title"><span class="num">04</span>动作表示、候选生成与 AOP 数据</h2>
+
+  <h3 class="sub-title">4.1 Canonical Action Representation</h3>
+  <p>AOP 不直接混用 ACT / π0 / DP / rule controller 的原生动作。统一到 EE-centric 物理语义：</p>
+  <pre><code>a_canonical = [Δx, Δy, Δz,
+               Δrx, Δry, Δrz,
+               gripper_state,
+               Δt]
+
+optional:
+target_force / impedance_gain / primitive_id</code></pre>
+  <p>所有 candidate action resample 到统一时间基准；若 chunk 长度不同，显式保存 mask / duration，避免模型把 chunk 长度本身当作 policy identity。</p>
+
+  <h3 class="sub-title">4.2 Candidate Action Generator</h3>
+  <pre><code>Candidate 0 : VLA nominal action
+Candidate 1 : geometry-based correction
+Candidate 2 : contact-side correction
+Candidate 3 : withdraw / retry primitive
+Candidate 4+: small local perturbations around nominal action</code></pre>
+  <p>第一版不依赖对 VLA 做大量随机重复采样。Candidate Generator 的目标是扩大“合理局部动作集合”，AOP 的目标是评价，不把动作生成与动作评价混成一个问题。</p>
+
+  <h3 class="sub-title">4.3 Candidate Safety Envelope（AOP 前置）</h3>
+  <p><span class="pill pill-eng">工程新增</span>任何候选在进入 AOP 之前先经过 deterministic safety filter：</p>
+  <pre><code>joint / workspace limits
+collision-free check
+max Cartesian step / rotation step
+force-aware forbidden direction
+known fixture constraints
+hard jam / overload state restrictions
+
+unsafe candidate → reject before AOP</code></pre>
+  <p>AOP 不能成为“安全过滤器的唯一来源”，否则 OOD 时的错误排序可能直接转化为硬件风险。</p>
+
+  <h3 class="sub-title">4.4 Paired Action 数据：证据等级</h3>
+  <table>
+    <tr><th>来源</th><th>角色</th><th>可否称 Ground Truth</th></tr>
+    <tr><td>Simulation counterfactual</td><td>pretraining / candidate proposal / coverage expansion</td><td>否，synthetic supervision</td></tr>
+    <tr><td>Real recovery</td><td>高置信度 calibration / finetune</td><td>局部真实结果</td></tr>
+    <tr><td>Real matched rollout</td><td>最终 ranking / product evaluation</td><td>是，产品结论依据</td></tr>
+    <tr><td>Selective active probing</td><td>测量 sim-to-real gap 的少量高价值状态</td><td>是，但稀疏且高成本</td></tr>
+  </table>
+  <div class="callout"><span class="label">重要限定：</span>真实机器人无法在完全相同微观接触状态上同时执行两个动作。所谓 real paired action 应理解为<strong>可重复 reset + matched initial condition 的近似反事实实验</strong>。记录 reset 误差、工件磨损、force zeroing、执行顺序，并随机化 AB/BA 顺序以降低漂移。</div>
+
+  <h2 class="section-title"><span class="num">05</span>分阶段研发路线与 Gate</h2>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 0 · 任务、数据、标签与安全定义</h4><span class="duration">0.5–1 周</span></div>
+    <ul>
+      <li><b>首个科学验证平台固定为标准 Peg-in-Hole</b>；第二阶段迁移试管/圆柱插入；USB / 光模块 / 标准连接器用于后续商业价值验证。</li>
+      <li>定义 Paper Track 与 Industrial Track 的 label schema，完成 Task Phase / Progress / Contact / Mistake 字段与版本管理。</li>
+      <li>确定 Physical Progress 的物理量、归一化范围、初始权重与 terminal override。</li>
+      <li>盘点 expert / policy success / policy failure / recovery / intervention 数据。</li>
+      <li>建立 episode/session/OOD split。</li>
+      <li>产出独立真机安全协议并实测。</li>
+    </ul>
+    <div class="gate-box"><b>Gate 0：</b>若 insertion depth、相对位姿或接触状态无法被可靠测量/估计，则 Industrial Progress 先不要训练模型，优先补测量链路。</div>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 1 · 双轨 Label Engine + Shortcut Baselines</h4><span class="duration revised">2–2.5 周</span></div>
+    <ul>
+      <li>Paper Track：实现论文 stage-aware success-then-decay 及 label-shape ablations；<code>V_mc</code> 复现使用 soft-target BCE。</li>
+      <li>Industrial Track：实现非单调 Physical Progress、Contact State、Mistake interval 与 provenance。</li>
+      <li>用 20–30 episodes 做 label timing / 参数敏感性 / 人工复核试点。</li>
+      <li>训练 Time-only / State-only / DINO+MLP / GRU cheap baselines。</li>
+      <li>MSE / Huber 作为工程 loss ablation，可选，不再承担“确认论文配置”的职责。</li>
+    </ul>
+    <div class="gate-box"><b>Gate 1：</b>若 Physical Progress 无法在 clean success / retry / jam / recovery / terminal failure 上产生符合物理直觉的曲线，停止扩模型，先修 Label Engine。</div>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 2 · ValueFormer State Critic 复现</h4><span class="duration">1 周</span></div>
+    <ul>
+      <li>冻结 DINOv3 backbone，支持离线 feature cache。</li>
+      <li>论文风格 2-layer causal Transformer，并保留 GRU 对照。</li>
+      <li>Paper Track 严格使用 BCE 双头训练设置。</li>
+      <li>Industrial Track 单独训练 progress / mistake critic，不混淆两套评价结论。</li>
+      <li>输出仍定义为 <code>V(s)</code>，不称 AOP。</li>
+    </ul>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 3A · 单一固定 Policy 在线验证</h4><span class="duration">1 周</span></div>
+    <ul>
+      <li>ACT / π0 / DP 三选一作为唯一首轮 rollout policy。</li>
+      <li>检测 clean success / retry / stuck / early collapse / jam-recovery signature。</li>
+      <li>评估 AP/AUROC、Failure Recall、False Alarms/min、Lead Time、Calibration、Progress correlation。</li>
+      <li>与 Time-only / State-only / DINO+MLP / GRU baseline 对照。</li>
+    </ul>
+    <div class="gate-box"><b>Gate 2：</b>State Critic 必须在关键 failure metric 上明显超过 shortcut baseline，且不是仅靠时间或关节状态获得高分；否则不进入 AOP。</div>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 3B · Cross-policy Generalization</h4><span class="duration revised">0.5–1 周</span></div>
+    <ul>
+      <li>冻结 Stage 3A Critic，不用新 policy 数据重训，直接评估第二种 policy。</li>
+      <li>检查视觉轨迹、速度分布、动作风格变化是否导致 failure detector 退化。</li>
+      <li>若需要适配，先比较 normalization / calibration / 少量 finetune，再决定是否需要 policy-conditioned critic。</li>
+    </ul>
+    <div class="gate-box"><b>Gate 3（建议初始口径）：</b>Cross-policy AP/AUROC 相对 ID policy 的下降若超过约 10%，或 Failure Recall 下降超过 10 个百分点，应暂停 AOP 多策略混训并先排查 policy identity shortcut。阈值可在 pilot 后预注册调整。</div>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 4 · Action-conditioned Critic：AOP V0</h4><span class="duration revised">2–3 周</span></div>
+    <ul>
+      <li>建立 Canonical Action Representation 和 Candidate Action Generator。</li>
+      <li>Candidate 先过 deterministic safety envelope。</li>
+      <li>训练固定 horizon <code>Q_H(s,a)</code> multi-head outcomes。</li>
+      <li>Simulation counterfactual pretrain → Real recovery calibration → Real matched paired ranking。</li>
+      <li>主指标：pairwise action ranking accuracy + 95% CI；辅助指标：ΔProgress、Jam/Slip、ΔPose/ΔDepth。</li>
+    </ul>
+    <div class="gate-box"><b>Gate 4：</b>真实 paired ranking 必须稳定高于随机 0.5；建议把“95% CI 下界高于 0.5”作为最小统计 Gate，并同时检查排序增益是否能转化为真实 success / recovery improvement。否则不进入 Lite-LDA。</div>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 5 · Contact AOP</h4><span class="duration">1–2 周</span></div>
+    <ul>
+      <li>输入加入 force history / tactile history / contact state。</li>
+      <li>输出扩展：progress、success_H、jam、slip、contact-side、<code>P(recoverable within H_r)</code>。</li>
+      <li>按 Vision → +Geometry → +Force → +Tactile 做严格增量消融。</li>
+      <li>Fast contact branch 与低频 AOP/World Critic 分离。</li>
+    </ul>
+    <div class="gate-box"><b>Gate 5：</b>Force/Tactile 必须在 jam/slip/OOD/lead-time/recovery 中至少一个关键产品指标产生可重复增益；若只有离线 loss 变好而真机无增益，则不进入第一版产品主路径。</div>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-head"><h4>阶段 6 · Lite-LDA / Future Outcome + Physical Grounding</h4><span class="duration">2 周+</span></div>
+    <ul>
+      <li>仅在真实 AOP paired ranking 成立后引入 future wrist latent / <code>z_future</code>。</li>
+      <li>主预测：<code>(z_t, a_chunk) → z_future + contact_future + progress_future</code>。</li>
+      <li>增加 physical grounding heads：<code>z_t→physical_state_t</code>、<code>z_future→physical_state_future</code>、<code>(z_t,z_future)→Δphysical_state</code>。</li>
+      <li>优先 grounding：ΔEE-target pose / Δinsertion depth / Δcontact position / Δforce / contact transition。</li>
+      <li>future latent 只有在真实 action ranking / OOD / recovery 上提供额外增益才保留。</li>
+    </ul>
+    <div class="gate-box"><b>Gate 6：</b>若 future latent 仅降低 latent prediction loss，却不改善真实 AOP / OOD / recovery，则停止扩大 World Model。</div>
+  </div>
+
+  <h2 class="section-title"><span class="num">06</span>评估体系与统计方法</h2>
+  <table>
+    <tr><th>能力</th><th>核心指标</th><th>统计 / 备注</th></tr>
+    <tr><td>Physical Progress</td><td>MAE / Spearman / trajectory-shape audit</td><td>clean/retry/jam/recovery 分开报告</td></tr>
+    <tr><td>Failure Detection</td><td>AP / AUROC / Failure Recall</td><td>注意类别不平衡，AP优先</td></tr>
+    <tr><td>Online Alert</td><td>Lead Time / False Alarms per min</td><td>在固定 false-alarm 预算下比较</td></tr>
+    <tr><td>Calibration</td><td>ECE / Brier Score</td><td>bootstrap CI</td></tr>
+    <tr><td>Recovery</td><td>Recovery detection / recovery success</td><td>定义 H_r</td></tr>
+    <tr><td>Cross-policy</td><td>AP/AUROC/Recall relative drop</td><td>冻结 critic 零样本测试优先</td></tr>
+    <tr><td>AOP</td><td>Pairwise ranking accuracy</td><td>binomial / bootstrap 95% CI；随机基线 0.5</td></tr>
+    <tr><td>Online Success</td><td>Success Rate Uplift</td><td>matched paired → Exact McNemar</td></tr>
+    <tr><td>Completion Time</td><td>paired difference</td><td>paired t 或 Wilcoxon</td></tr>
+    <tr><td>Maximum Force</td><td>paired difference / tail risk</td><td>Wilcoxon + percentile</td></tr>
+    <tr><td>UPH</td><td>completed units / hour</td><td>产品级综合指标</td></tr>
+  </table>
+
+  <h3 class="sub-title">6.1 A/B 设计</h3>
+  <pre><code>Baseline Policy
+vs Policy + State Critic Guard
+vs Policy + AOP Reranking
+vs Policy + Contact AOP</code></pre>
+  <p>使用 matched initial conditions，随机化 AB / BA 执行顺序，并记录 reset error、工件 ID / 磨损、传感器零点、夹具状态、光照和软件版本。Success/Failure 采用 Exact McNemar；连续指标使用 paired t / Wilcoxon。样本量不照抄论文 n=20，先通过 pilot 估计 discordant-pair rate，或预注册希望检测的 10/15/20 percentage-point success uplift 后做 power analysis。</p>
+
+  <h2 class="section-title"><span class="num">07</span>真机安全、部署与运行时约束</h2>
+  <h3 class="sub-title">7.1 真机实验安全协议</h3>
+  <ul style="padding-left:20px;">
+    <li>轴向/径向力与力矩上限按工件刚度、夹具和末端工具标定。</li>
+    <li>卡滞退出：连续 N 个控制周期插入深度不增长且力超过阈值，触发保护回撤。</li>
+    <li>软件保护 + 硬件急停 / 控制器阈值双重冗余。</li>
+    <li>失败后检查工件和夹具，损坏件不进入下一轮数据。</li>
+    <li>AOP candidate safety filter 在模型排序前执行；模型输出不能绕过安全控制器。</li>
+  </ul>
+
+  <h3 class="sub-title">7.2 Serving 优化原则</h3>
+  <ul style="padding-left:20px;">
+    <li>冻结视觉 backbone 时优先缓存离线特征用于训练；在线 serving 再评估共享 backbone 或 batched multi-view encoder。</li>
+    <li>Critic 与 policy 共享 GPU 时必须测量 policy deadline 受影响程度，而不是只报告 critic latency。</li>
+    <li>低频 State Critic / AOP 与高频 Contact / Force Residual 分进程或分线程，采用明确 timestamp / stale-action 检查。</li>
+    <li>记录 observation time、candidate generation time、AOP score time、execution time，避免 action chunk 过期。</li>
+  </ul>
+
+  <h2 class="section-title"><span class="num">08</span>建议时间线</h2>
+  <div class="timeline">
+    <div class="timeline-row"><div><div class="tl-week">第 0–1 周</div><div class="tl-content">Peg-in-Hole 任务/测量/安全定义；Paper/Industrial 双轨标签 schema；Physical Progress 初始函数；episode/OOD split。</div></div></div>
+    <div class="timeline-row"><div><div class="tl-week">第 1–3.5 周</div><div class="tl-content">双轨 Label Engine；20–30 episode 标签试点；Time/State/DINO/GRU cheap baselines；shortcut 审计。</div></div></div>
+    <div class="timeline-row"><div><div class="tl-week">第 3.5–4.5 周</div><div class="tl-content">ValueFormer Paper Track 复现 + Industrial State Critic；双头 BCE、标签消融与视觉表示对照。</div></div></div>
+    <div class="timeline-row"><div><div class="tl-week">第 4.5–5.5 周</div><div class="tl-content">Phase 3A：单一固定 policy 真实 rollout failure/progress 验证。</div></div></div>
+    <div class="timeline-row"><div><div class="tl-week">第 5.5–6.5 周</div><div class="tl-content">Phase 3B：冻结 Critic 做 cross-policy generalization；必要时做 calibration / 少量适配。</div></div></div>
+    <div class="timeline-row"><div><div class="tl-week">第 6.5–9.5 周</div><div class="tl-content">Canonical Action + Candidate Generator + Safety Envelope + AOP Q_H(s,a)：Sim pretrain → Real recovery calibration → Real matched ranking。</div></div></div>
+    <div class="timeline-row"><div><div class="tl-week">第 9.5–11.5 周</div><div class="tl-content">Force/Tactile Contact AOP、多速率部署、recoverable-within-H_r 与模态增量消融。</div></div></div>
+    <div class="timeline-row"><div><div class="tl-week">第 11.5 周以后</div><div class="tl-content">仅在真实 AOP 排序成立后进入 physical-grounded Lite-LDA；再迁移试管/圆柱，最后进入 USB / 光模块 / connector 商业任务。</div></div></div>
+  </div>
+  <div class="callout"><span class="label">排期说明：</span>以上为单主线研发的建议节奏。数据采集、仿真标定、真实 paired trial 和硬件问题可能并行发生；任何 Gate 未通过都允许停留/回退，不以时间线强行推动到下一阶段。</div>
+
+  <h2 class="section-title"><span class="num">09</span>最终建议架构</h2>
+  <pre><code>                 Global / Wrist Vision
+                          │
+                Semantic + Spatial Feature
+                          │
+ Geometry ────────────────┤
+ Robot State History ─────┤
+                          ▼
+                   State Critic V(s)
+                          │
+               Support / OOD / Progress
+                          │
+                          ▼
+               Candidate Action Generator
+            ┌──────────┬──────────┬──────────┐
+            ▼          ▼          ▼          ▼
+        VLA nominal  Geometry   Contact   Withdraw/Retry
+            └──────────┴──────────┴──────────┘
+                          │
+                          ▼
+                 Deterministic Safety Filter
+                          │
+                          ▼
+               Canonical Action Representation
+                          │
+                          ▼
+                    AOP Q_H(s,a)
+              ┌───────────┼──────────────┐
+              ▼           ▼              ▼
+         ΔProgress      P(Jam)      ΔPhysical State
+              │           │              │
+              └───────────┼──────────────┘
+                          ▼
+                     Action Ranking
+                          │
+               Continue / Replan / Abort
+                          │
+                          ▼
+                        Execute
+                          │
+             Expected Contact / Outcome
+                          │
+                          ▼
+                 Actual Force / Tactile
+                          │
+                          ▼
+                   Prediction Error
+                          │
+               Recover / Abort / Continue
+
+Optional after AOP passes Gate:
+(z_t, a_chunk) → z_future + contact_future + progress_future
+        ├→ physical_state_future
+        └→ Δphysical_state
+                          ↓
+                  Physical-grounded Lite-LDA</code></pre>
+
+  <h2 class="section-title"><span class="num">10</span>研发交付物与仓库建议</h2>
+  <table>
+    <tr><th>模块</th><th>最低交付物</th></tr>
+    <tr><td>Label Engine</td><td>paper_labels.py / industrial_progress.py / contact_labels.py / label_schema.json / label_version changelog</td></tr>
+    <tr><td>Dataset QA</td><td>episode split manifest、sensor sync report、failure/recovery distribution、label audit 可视化</td></tr>
+    <tr><td>Baselines</td><td>Time/State/DINO/GRU/Transformer 统一训练脚本与同一 evaluator</td></tr>
+    <tr><td>State Critic</td><td>paper reproduction config、industrial config、offline metrics、online rollout viewer</td></tr>
+    <tr><td>Action Interface</td><td>canonical_action.py、policy adapters、chunk resampling、unit tests</td></tr>
+    <tr><td>Candidate Generator</td><td>VLA / geometry / contact / retry candidates + deterministic safety filter</td></tr>
+    <tr><td>AOP</td><td>sim-pretrain / real-calibration / real-ranking 三套 dataset manifest、multi-head model、ranking evaluator</td></tr>
+    <tr><td>Contact AOP</td><td>force/tactile sync、contact-state labels、modality ablation、high-frequency branch</td></tr>
+    <tr><td>Lite-LDA</td><td>future latent + physical grounding heads、ablation against AOP-only</td></tr>
+    <tr><td>真机实验</td><td>matched-condition manifest、randomization order、McNemar report、UPH/force/intervention/recovery report</td></tr>
+  </table>
+  <pre><code>suggested repository skeleton
+configs/
+  paper_valueformer/
+  industrial_progress/
+  aop/
+  contact_aop/
+
+data/
+  manifests/
+  splits/
+  label_versions/
+labels/
+models/
+policy_adapters/
+candidate_generator/
+safety/
+evaluation/
+sim/
+real_robot/
+reports/</code></pre>
+
+  <h2 class="section-title"><span class="num">11</span>最终 Go / No-Go 总表</h2>
+  <table>
+    <tr><th>Gate</th><th>必须回答的问题</th><th>未通过时动作</th></tr>
+    <tr><td>G0 Measurement</td><td>几何/深度/接触是否可可靠观测？</td><td>先修测量与标定，不训练复杂模型</td></tr>
+    <tr><td>G1 Labels</td><td>Industrial Progress 是否正确表达 retry/jam/recovery？</td><td>修标签，不扩模型</td></tr>
+    <tr><td>G2 State Critic</td><td>是否显著超过 Time/State shortcut？</td><td>检查数据泄漏与标签质量</td></tr>
+    <tr><td>G3 Cross-policy</td><td>是否学到任务状态而非 policy identity？</td><td>校准/规范化/重新设计表示</td></tr>
+    <tr><td>G4 AOP</td><td>真实 paired ranking 是否稳定 > random？</td><td>停止 Lite-LDA，修 candidate/data/sim-to-real</td></tr>
+    <tr><td>G5 Tactile</td><td>Force/Tactile 是否带来真实产品指标增益？</td><td>不进入 V1 产品主路径</td></tr>
+    <tr><td>G6 Lite-LDA</td><td>future latent 是否改善 ranking/OOD/recovery？</td><td>保持 AOP-only，小模型优先</td></tr>
+  </table>
+
+  <div class="integration-box">
+    <h4>V3.2 最终研发原则</h4>
+    <ol>
+      <li><b>论文复现与工业创新双轨管理：</b>Paper Track 忠实，Industrial Track 可证伪，不互相冒充结论。</li>
+      <li><b>Phase 不等于 Progress：</b>工业 Progress 必须由物理状态定义，允许下降和恢复。</li>
+      <li><b>先 V(s)，再 Q_H(s,a)：</b>先证明“当前好不好”，再证明“哪个动作更好”。</li>
+      <li><b>Simulation 扩覆盖，Real rollout 定成败：</b>仿真不是毫米级接触的现实 Ground Truth。</li>
+      <li><b>Candidate 先过硬安全，再交给 AOP 排序：</b>学习评价器不能替代确定性安全链路。</li>
+      <li><b>触觉必须证明增量价值：</b>不能因为有传感器就默认进入主模型。</li>
+      <li><b>World Model 最后做：</b>只有 AOP 已经在真机动作排序上成立，future latent 才有资格进入下一阶段。</li>
+      <li><b>所有结论可追溯：</b>论文配置写版本/章节/公式；工程标签写 config/version/provenance；真机结果写 matched condition 与统计方法。</li>
+    </ol>
+  </div>
+
+  <div class="link-callout">
+    <span class="label">基础论文：</span>
+    <a href="https://arxiv.org/abs/2608.02958" target="_blank">arXiv:2608.02958</a> — <em>ValueFormer: A Causal Transformer Value Function with Stage-Aware Labels for Semi-Autonomous Vision-Language-Action Policies</em>；复现事实以 <a href="https://arxiv.org/html/2608.02958v1" target="_blank">v1 HTML</a> 为当前固定 source of truth。
+  </div>
+
+  <footer>
+    ValueFormer复现与AOP迁移研发计划 V3.2 · 基于 V3.1 二次审查更新：完成论文损失函数证据闭环，建立 Paper/Industrial 双轨 Label Engine，给出非单调 Physical Progress 明确实现方案，新增 Cross-policy 独立阶段与 Gate，并统一阶段时长、版本记录、候选安全过滤与真机统计口径。用于内部研发执行、代码实现与阶段验收。
+  </footer>
+</div>
+
+</body>
+</html>
