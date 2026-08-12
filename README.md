@@ -91,8 +91,11 @@ each, and runs a toy AOP ranking over safety-filtered candidates.
 
 To move from this scaffold to a real reproduction:
 
-1. Replace `FrozenDinoV3Encoder(use_real_dinov3=True)` and ensure
-   `torch.hub` can fetch DINOv3 ViT-L/16 (or point it at local weights).
+1. Get real DINOv3 weights (gated, not anonymously downloadable -- see
+   "Getting real DINOv3 weights" below), clone `facebookresearch/dinov3`
+   locally, set `DINOV3_REPO_DIR` and `DINOV3_VITL16_WEIGHTS`, and construct
+   `FrozenDinoV3Encoder(use_real_dinov3=True)` (env vars are picked up
+   automatically; both must be set or it silently falls back).
 2. Replace `data/synthetic.py` with a loader over your LeRobot v2 episode
    set, producing the same `SyntheticEpisode`-shaped fields (or adapt
    `data/dataset.py` to your own episode type).
@@ -102,6 +105,53 @@ To move from this scaffold to a real reproduction:
    ("never overwrite the paper config").
 4. Follow the R&D plan's Gate sequence (Section 05/11) before promoting
    any Industrial Track model into the AOP / Contact AOP / Lite-LDA phases.
+
+### Getting real DINOv3 weights
+
+DINOv3 is gated -- there is no anonymous `torch.hub` remote download like
+DINOv2 had.
+
+1. Request access at the official Meta portal:
+   https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/
+   You get an email with direct `.pth` URLs (download with `wget`, not a
+   browser, per the repo's own instructions).
+2. Clone the code repo: `git clone https://github.com/facebookresearch/dinov3.git`
+   -- the checkpoints are not bundled in the repo, only the loading code.
+3. Load locally (this is what `dinov3_encoder.py` now does under the hood):
+   ```python
+   torch.hub.load(REPO_DIR, "dinov3_vitl16", source="local", weights=CHECKPOINT_PATH_OR_URL)
+   ```
+   Set `DINOV3_REPO_DIR=/path/to/cloned/dinov3` and
+   `DINOV3_VITL16_WEIGHTS=/path/to/dinov3_vitl16_pretrain_lvd1689m-*.pth`
+   (or the URL from the access email) and the encoder picks both up
+   automatically.
+4. Alternative without the gated form: Hugging Face mirrors the same
+   weights (may still require accepting a license on huggingface.co) at
+   `facebook/dinov3-vitl16-pretrain-lvd1689m`, loadable via
+   `transformers.AutoModel` instead of `torch.hub` -- would need a small
+   adapter in `dinov3_encoder.py` if you go this route instead.
+5. The paper's config snapshot (`configs/paper_valueformer/base.yaml`) uses
+   ViT-L/16 at 518x518. The paper also mentions a supported ViT-B/16 @ 224x224
+   variant (hub entrypoint `dinov3_vitb16`) if you want a lighter checkpoint
+   to iterate faster.
+
+### What's still missing -- and likely cannot be downloaded
+
+- **The paper's actual training data** (1,249 expert-success + 178
+  autonomous-rollout LeRobot v2 episodes of the bimanual sandwich-assembly
+  task) is Chef Robotics' private real-robot dataset. It does not appear to
+  be publicly released, and there's no indication it will be -- you cannot
+  download an equivalent of Table II's numbers without either your own
+  robot + task generating comparable data, or a released dataset from the
+  authors that doesn't currently exist publicly.
+- To at least exercise the **real** DINOv3 encoder against **real** (but
+  different-task) robot episodes, public LeRobot-v2-format datasets are
+  available at https://huggingface.co/lerobot (e.g. ALOHA / PushT / xArm
+  demonstrations) -- useful for validating the encoder/data-loading path,
+  not for reproducing the paper's numbers.
+- No other pretrained weights are needed: the causal Transformer body and
+  both heads (≈3.46M params) are trained from scratch on top of the frozen
+  DINOv3 features, per the paper.
 
 ## Source documents
 

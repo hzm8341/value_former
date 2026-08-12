@@ -17,11 +17,20 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 
 import torch
 import torch.nn as nn
 
 logger = logging.getLogger(__name__)
+
+# DINOv3 is distributed as a gated checkpoint (see README for how to request
+# access) and, unlike DINOv2, its torch.hub entrypoints only work with
+# source="local" against a cloned facebookresearch/dinov3 checkout plus an
+# explicit weights path/URL -- there is no anonymous remote-hub download.
+DINOV3_REPO_DIR_ENV = "DINOV3_REPO_DIR"
+DINOV3_WEIGHTS_ENV = "DINOV3_VITL16_WEIGHTS"
+DINOV3_HUB_ENTRYPOINT = "dinov3_vitl16"
 
 DEFAULT_VIEWS = (
     "cam_high",
@@ -73,7 +82,15 @@ class FrozenDinoV3Encoder(nn.Module):
         view_names: tuple[str, ...] = DEFAULT_VIEWS,
         out_dim: int = 1024,
         use_real_dinov3: bool = True,
+        dinov3_repo_dir: str | None = None,
+        dinov3_weights: str | None = None,
     ):
+        """``dinov3_repo_dir``/``dinov3_weights`` default to the
+        DINOV3_REPO_DIR / DINOV3_VITL16_WEIGHTS env vars. Both must be set
+        (a local clone of facebookresearch/dinov3 + a downloaded or URL
+        checkpoint) for the real backbone to load; otherwise this silently
+        falls back to the offline random-projection encoder.
+        """
         super().__init__()
         self.view_names = view_names
         self.out_dim = out_dim
@@ -82,10 +99,13 @@ class FrozenDinoV3Encoder(nn.Module):
         self.per_view = nn.ModuleDict()
         real_backbone = None
         if use_real_dinov3:
-            real_backbone = self._try_load_dinov3()
+            real_backbone = self._try_load_dinov3(
+                dinov3_repo_dir or os.environ.get(DINOV3_REPO_DIR_ENV),
+                dinov3_weights or os.environ.get(DINOV3_WEIGHTS_ENV),
+            )
 
         if real_backbone is not None:
-            self.backend = "dinov3_vitl16"
+            self.backend = DINOV3_HUB_ENTRYPOINT
             self.shared_backbone = real_backbone
             for p in self.shared_backbone.parameters():
                 p.requires_grad_(False)
@@ -98,13 +118,21 @@ class FrozenDinoV3Encoder(nn.Module):
             p.requires_grad_(False)
 
     @staticmethod
-    def _try_load_dinov3():
+    def _try_load_dinov3(repo_dir: str | None, weights: str | None):
+        if not repo_dir or not weights:
+            logger.warning(
+                "DINOV3_REPO_DIR / DINOV3_VITL16_WEIGHTS not set; using frozen "
+                "random-projection fallback. See README for how to get real DINOv3 weights."
+            )
+            return None
         try:
-            model = torch.hub.load("facebookresearch/dinov3", "dinov3_vitl16", pretrained=True)
+            # DINOv3's torch.hub entrypoints require a local clone (source="local")
+            # and an explicit weights path/URL -- there is no anonymous remote load.
+            model = torch.hub.load(repo_dir, DINOV3_HUB_ENTRYPOINT, source="local", weights=weights)
             model.eval()
             return model
         except Exception as exc:  # noqa: BLE001 - any failure -> offline fallback
-            logger.warning("DINOv3 hub load failed (%s); using frozen random-projection fallback.", exc)
+            logger.warning("DINOv3 local hub load failed (%s); using frozen random-projection fallback.", exc)
             return None
 
     @torch.no_grad()
