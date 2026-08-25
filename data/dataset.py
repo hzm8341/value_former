@@ -27,11 +27,12 @@ def encode_episode(
 ) -> torch.Tensor:
     """Runs the frozen encoder over every frame of an episode. Returns (T, vision_dim)."""
     n = len(episode.sample_times)
+    device = next(encoder.parameters()).device
     chunks = []
     for start in range(0, n, batch_size):
         end = min(start + batch_size, n)
-        views = {v: episode.images[v][start:end] for v in DEFAULT_VIEWS}
-        chunks.append(encoder(views))
+        views = {v: episode.images[v][start:end].to(device) for v in DEFAULT_VIEWS}
+        chunks.append(encoder(views).cpu())
     return torch.cat(chunks, dim=0)
 
 
